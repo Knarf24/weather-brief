@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Weather &amp; Air Brief</title>
+  <meta name="description" content="Pick your city and get a short morning brief: do you need an umbrella, when it will rain, what to wear, how clean the air is and the best time to be outside. Written in Python, running in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🌦️ Daily Weather &amp; Air Brief</h1>
+    <p class="lead">Weather apps show a wall of numbers. This gives you <b>the few things you need before you leave home</b>:
+      do you need an umbrella and when will it rain, what to wear, <b>how clean the air is</b> and the best time to walk,
+      run or let the kids play outside. Get it on the page, or <b>every morning on Telegram or WhatsApp</b>.</p>
+    <p class="py">🐍 The brief is written by Python running right here in your browser with Pyodide,
+      using free forecasts from Open-Meteo.</p>
+  </header>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div>
+      <b id="loadText">Starting Python…</b>
+      <div class="small">First visit downloads about 12 MB (Python). Later visits are faster.</div>
+    </div>
+  </div>
+
+  <section class="card pick">
+    <form id="searchForm" class="search" autocomplete="off">
+      <div class="combo">
+        <input id="city" type="text" placeholder="Type your city or town…" aria-label="City" disabled>
+        <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+      </div>
+      <button id="go" type="submit" disabled>Get my brief</button>
+      <button id="locate" type="button" class="ghost" disabled title="Use where you are now">📍 My location</button>
+    </form>
+    <div id="chips" class="chips"></div>
+  </section>
+
+  <main id="app" class="app" hidden>
+    <section class="card briefcard" aria-live="polite">
+      <div class="brief-top">
+        <div>
+          <div id="place" class="place"></div>
+          <div id="date" class="small"></div>
+        </div>
+        <div id="bigIcon" class="bigicon"></div>
+      </div>
+      <div id="headline" class="headline"></div>
+      <div class="tiles">
+        <div class="tile"><span class="k">Rain chance</span><b id="tRain"></b></div>
+        <div class="tile"><span class="k">Temperature</span><b id="tTemp"></b></div>
+        <div class="tile" id="aqiTile"><span class="k">Air quality</span><b id="tAir"></b></div>
+      </div>
+      <ul id="lines" class="lines"></ul>
+      <div class="share">
+        <button id="copy" type="button">📋 Copy</button>
+        <a id="wa" class="btn wa" target="_blank" rel="noopener">WhatsApp</a>
+        <a id="tg" class="btn tg" target="_blank" rel="noopener">Telegram</a>
+        <button id="nativeShare" type="button" hidden>Share…</button>
+        <button id="refresh" type="button" class="ghost">↻ Refresh</button>
+      </div>
+    </section>
+
+    <section class="card hourly">
+      <h3>Hour by hour today</h3>
+      <div class="legend small">
+        <span><i class="sw rain"></i> rain chance</span>
+        <span><i class="sw dot" style="background:#2ea043"></i> air quality (AQI)</span>
+      </div>
+      <div id="hours" class="hours"></div>
+      <p class="small">AQI is worked out in Python from the forecast levels of fine dust (PM2.5), dust (PM10), ozone and NO₂,
+        using the US EPA scale: 0–50 good, 51–100 moderate, 101–150 unhealthy for sensitive groups, above 150 unhealthy.</p>
+    </section>
+  </main>
+
+  <div id="error" class="card errorbox" hidden></div>
+
+  <section class="card wide">
+    <h3>📲 Get it every morning</h3>
+    <p>The same Python code runs on GitHub every day at 06:30 (South Africa time) and sends the brief to your phone. It's free.
+      Make your own copy of <a href="https://github.com/Knarf24/weather-brief">the project on GitHub</a>, then pick one:</p>
+    <div class="two">
+      <div>
+        <h4>Telegram</h4>
+        <ol>
+          <li>In Telegram, message <b>@BotFather</b>, send <code>/newbot</code> and copy the <b>token</b> it gives you.</li>
+          <li>Send any message to your new bot, then open <code>https://api.telegram.org/bot&lt;token&gt;/getUpdates</code>
+            and copy the number after <code>"chat":{"id":</code>.</li>
+          <li>On GitHub add the secrets <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code>.</li>
+        </ol>
+      </div>
+      <div>
+        <h4>WhatsApp (via CallMeBot)</h4>
+        <ol>
+          <li>Save <b>+34 694 29 84 96</b> in your contacts and send it
+            <code>I allow callmebot to send me messages</code> on WhatsApp.</li>
+          <li>It replies with your <b>API key</b>.</li>
+          <li>On GitHub add the secrets <code>CALLMEBOT_PHONE</code> (your number, like <code>+27821234567</code>)
+            and <code>CALLMEBOT_APIKEY</code>.</li>
+        </ol>
+        <p class="small">CallMeBot is a free personal service, fine for messages to yourself. The official WhatsApp
+          Business API costs money.</p>
+      </div>
+    </div>
+    <p class="small">Set your city as the repository variable <code>CITY</code> (Settings → Secrets and variables → Actions → Variables).
+      Secrets stay private on GitHub; this page never sees them.</p>
+  </section>
+
+  <section class="card wide how">
+    <h3>How it works</h3>
+    <ol>
+      <li><b>Find the place:</b> Python looks up your city with Open-Meteo's free geocoder.</li>
+      <li><b>Weather:</b> it fetches today's hourly forecast (rain chance, temperature, wind, UV) and decides whether you need an
+        umbrella and when the rain is most likely (GeeksforGeeks <i>Scraping Weather Data for an Umbrella Reminder</i>).</li>
+      <li><b>Air quality:</b> it fetches forecast pollutant levels and works out the Air Quality Index itself with the
+        EPA breakpoint formula, naming the main pollutant and what to do (GeeksforGeeks <i>Predicting Air Quality Index</i>).</li>
+      <li><b>Best time outside:</b> it scores every hour by rain chance, air quality and heat and picks the best stretch.</li>
+      <li><b>Morning message:</b> a GitHub Actions job runs the same Python every morning and sends the brief to Telegram or
+        WhatsApp (GeeksforGeeks <i>Automate WhatsApp Messages</i>).</li>
+    </ol>
+    <p class="small">🔒 <b>Privacy:</b> no account and nothing saved except your recent cities, in this browser only.
+      Your city (or location, if you tap 📍) is sent to Open-Meteo to get the forecast.</p>
+    <p class="small">Weather and air data: <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0), air quality from
+      CAMS (Copernicus Atmosphere Monitoring Service). Forecasts can be wrong; for severe weather follow your national weather service.</p>
+    <p class="small">Source code: <a href="https://github.com/Knarf24/weather-brief">github.com/Knarf24/weather-brief</a></p>
+  </section>
+
+  <script src="pyodide/pyodide.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

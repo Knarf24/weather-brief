@@ -1,0 +1,4 @@
+# Nothing to install: the web page runs Python in the browser (Pyodide),
+# and send_brief.py only uses Python's standard library.
+# For the tests only:
+pytest

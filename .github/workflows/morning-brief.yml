@@ -1,0 +1,31 @@
+name: Morning brief
+
+# Every day at 04:30 UTC (06:30 in South Africa). Change the time here; GitHub may start it a few minutes late.
+on:
+  schedule:
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "City (leave empty to use the CITY variable)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Make and send the brief
+        env:
+          CITY: ${{ inputs.city || vars.CITY || 'Durban' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+        run: python send_brief.py --send
