@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
       - name: Make and send the brief
         env:
-          CITY: ${{ inputs.city || vars.CITY || 'New York' }}
+          CITY: ${{ inputs.city || vars.CITY || 'Salisbury, North Carolina' }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

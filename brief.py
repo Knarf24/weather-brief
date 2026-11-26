@@ -422,11 +422,39 @@ async def brief_for(place: dict, get_json: GetJson, now: str | None = None) -> d
     return make_brief(place, weather, air, now)
 
 
-async def brief_for_city(name: str, get_json: GetJson, now: str | None = None) -> dict:
-    places = await find_places(name, get_json, count=1)
+US_STATES = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado",
+    "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana",
+    "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota",
+    "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina",
+    "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania",
+    "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas",
+    "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
+}
+
+
+async def find_city(query: str, get_json: GetJson) -> dict | None:
+    """The best match for "Town" or "Town, Region[, Country]" (e.g. "Salisbury, North Carolina" or "Salisbury, NC")."""
+    town, *hints = [part.strip() for part in query.split(",") if part.strip()]
+    places = await find_places(town, get_json, count=20 if hints else 1)
     if not places:
+        return None
+    hints = [US_STATES.get(h.upper(), h).lower() for h in hints]
+    for p in places:
+        where = [(p.get("admin1") or "").lower(), (p.get("country") or "").lower(), (p.get("country_code") or "").lower()]
+        if all(any(w and (w == h or w.startswith(h)) for w in where) for h in hints):
+            return p
+    return places[0]
+
+
+async def brief_for_city(name: str, get_json: GetJson, now: str | None = None) -> dict:
+    place = await find_city(name, get_json)
+    if not place:
         raise LookupError(f"Couldn't find a place called {name!r}.")
-    return await brief_for(places[0], get_json, now)
+    return await brief_for(place, get_json, now)
 
 
 # ---------------------------------------------------------------- browser entry points (Pyodide)
@@ -441,7 +469,13 @@ async def _pyfetch_json(url: str) -> dict:
 
 
 async def places_json(name: str) -> str:
-    return json.dumps(await find_places(name, _pyfetch_json))
+    """Suggestions for the search box; "Town, Region" puts the matching town first."""
+    if "," not in name:
+        return json.dumps(await find_places(name, _pyfetch_json))
+    best = await find_city(name, _pyfetch_json)
+    town = name.split(",")[0].strip()
+    others = [p for p in await find_places(town, _pyfetch_json) if best is None or p["label"] != best["label"]]
+    return json.dumps(([best] if best else []) + others)
 
 
 async def brief_json(place_json: str) -> str:

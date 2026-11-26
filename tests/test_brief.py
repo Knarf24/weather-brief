@@ -231,3 +231,12 @@ def test_several_send_hours(monkeypatch, capsys):
     monkeypatch.setenv("NTFY_TOPIC", "t")
     assert send_brief.main(["Durban", "--send", "--at-hour", "12,17"]) == 0 and calls == []
     assert send_brief.main(["Durban", "--send", "--at-hour", "6,12,17"]) == 0 and len(calls) == 1
+
+
+def test_city_with_region_picks_the_right_one():
+    pick = lambda q: asyncio.run(brief.find_city(q, fake_get_json()))["label"]
+    assert pick("Durban") == "Durban, KwaZulu-Natal, South Africa"
+    assert pick("Durban, Occitanie") == "Durban, Occitanie, France"
+    assert pick("Durban, France") == "Durban, Occitanie, France"
+    assert pick("Durban, FR") == "Durban, Occitanie, France"
+    assert brief.US_STATES["NC"] == "North Carolina"
