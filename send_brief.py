@@ -82,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     # The phone message is the short 3-line version unless BRIEF_STYLE=full.
     full = (os.environ.get("BRIEF_STYLE") or "").lower() == "full"
     text = result["text"] if full else result["short_text"]
+    print(f"[{result['place']}, local time {result['now'][11:16]} ({result.get('timezone')})]\n")
     print(text)
     if not args.send:
         return 0
