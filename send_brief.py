@@ -9,6 +9,7 @@ Where it goes is set with environment variables (on GitHub: Settings > Secrets a
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   free: make a bot with @BotFather, see README
     CALLMEBOT_PHONE, CALLMEBOT_APIKEY      free WhatsApp: text @CallMeBot once to get a key, see README
     CITY                                    used when no city is given on the command line
+    BRIEF_STYLE=full                        send the whole brief instead of the short 3-line message
 """
 
 from __future__ import annotations
@@ -58,7 +59,9 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     result = asyncio.run(brief.brief_for_city(args.city, get_json))
-    text = result["text"]
+    # The phone message is the short 3-line version unless BRIEF_STYLE=full.
+    full = (os.environ.get("BRIEF_STYLE") or "").lower() == "full"
+    text = result["text"] if full else result["short_text"]
     print(text)
     if not args.send:
         return 0

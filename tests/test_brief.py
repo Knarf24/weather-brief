@@ -138,7 +138,7 @@ def test_send_brief_prints_and_skips_without_keys(monkeypatch, capsys):
         monkeypatch.delenv(k, raising=False)
     assert send_brief.main(["Durban", "--send"]) == 0
     out = capsys.readouterr().out
-    assert "Morning brief for Durban" in out and "Nothing sent" in out
+    assert "Durban, Thu 26 Nov" in out and "Nothing sent" in out
 
 
 def test_send_brief_sends_to_both(monkeypatch, capsys):
@@ -150,7 +150,7 @@ def test_send_brief_sends_to_both(monkeypatch, capsys):
     monkeypatch.setenv("CALLMEBOT_PHONE", "+27000"); monkeypatch.setenv("CALLMEBOT_APIKEY", "k")
     assert send_brief.main(["Durban", "--send"]) == 0
     assert [c[0] for c in calls] == ["tg", "wa"]
-    assert "Morning brief" in calls[0][1][2]
+    assert calls[0][1][2].count("\n") == 2  # short message by default
     assert "Sent to Telegram and WhatsApp" in capsys.readouterr().out
 
 
@@ -169,3 +169,12 @@ def test_all_day_good_says_any_time():
     air["hourly"]["ozone"] = [20.0] * len(air["hourly"]["time"])
     b = brief.make_brief(PLACE, w, air, now="2026-11-26T05:00")
     assert b["best_line"] == "Any time is fine to be outside today."
+
+
+def test_short_message_is_three_lines():
+    b = brief.make_brief(PLACE, load("forecast_rainy.json"), load("air_clean.json"))
+    lines = b["short_text"].split("\n")
+    assert len(lines) == 3
+    assert lines[0].startswith("🌧️ Durban, Thu 26 Nov: 10–24°C")
+    assert lines[1] == "☔ Take an umbrella (14:00–18:00)"
+    assert lines[2] == "🟡 Air: moderate"

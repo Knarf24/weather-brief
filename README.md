@@ -9,7 +9,7 @@ Weather apps show a wall of numbers. This gives you the few things you need befo
 - 🟢 **How clean the air is**: the Air Quality Index worked out in Python from the forecast pollutant levels, the main pollutant, and what to do about it
 - 🚶 **The best time to be outside** today (dry, cleanest air, not the hottest hours)
 - 📅 A one-line look at tomorrow
-- 📲 **Every morning on Telegram or WhatsApp**, free, through GitHub Actions
+- 📲 **Every morning on Telegram or WhatsApp** as a short 3-line message (or the full brief with the variable `BRIEF_STYLE=full`), free, through GitHub Actions
 
 Written in **Python**. The web page runs the same `brief.py` in your browser with [Pyodide](https://pyodide.org), so there is no server.
 Forecasts come from [Open-Meteo](https://open-meteo.com) (free, no API key).

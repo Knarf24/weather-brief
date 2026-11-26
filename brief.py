@@ -373,6 +373,17 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
         f"{ic} {line}".strip() for ic, line in rows if line)
     text += "\n\nData: Open-Meteo.com"
 
+    # --- the short version for a phone message: three lines
+    day_short = datetime.strptime(today, "%Y-%m-%d").strftime("%a %d %b").replace(" 0", " ")
+    if umbrella:
+        windows = _ranges(wet_hours) or _ranges(maybe_hours)
+        rain_short = "☔ Take an umbrella" + (f" ({_fmt_range(windows[0])})" if windows else "")
+    else:
+        rain_short = "🌂 No umbrella needed"
+    air_short = f"{level['icon']} Air: {level['name'].lower()}" if worst is not None else "⚪ Air: no reading"
+    short_text = (f"{icon} {place.get('name') or place_label(place)}, {day_short}: "
+                  f"{t_min:.0f}–{t_max:.0f}°C, {sky.lower()}\n{rain_short}\n{air_short}")
+
     return {
         "place": place_label(place), "date": today, "date_label": date_label, "now": now,
         "headline": headline, "umbrella": umbrella, "icon": icon, "sky": sky,
@@ -380,7 +391,7 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
         "extras": extras, "air_line": air_line, "air_advice": air_advice, "aqi": worst,
         "aqi_level": level["name"], "aqi_icon": level["icon"], "main_pollutant": main_pol and POLLUTANT_NAMES[main_pol],
         "best_line": best_line, "tomorrow_line": tomorrow_line, "rain_chance": peak_p, "rain_mm": round(rain_mm, 1),
-        "t_min": t_min, "t_max": t_max, "uv": uv, "hours": hours, "text": text,
+        "t_min": t_min, "t_max": t_max, "uv": uv, "hours": hours, "text": text, "short_text": short_text,
         "timezone": weather.get("timezone"),
     }
 
