@@ -43,10 +43,11 @@ The message is a short 3-line summary, for example:
    - **WhatsApp (CallMeBot, free for messages to yourself):** open [CallMeBot's WhatsApp page](https://www.callmebot.com/blog/free-api-whatsapp-messages/), save the bot number shown there
      in your contacts and send it `I allow callmebot to send me messages` (if the page says the bot is full, try again in a few days).
      Put your number (like `+27821234567`) in `CALLMEBOT_PHONE` and the key it sends back in `CALLMEBOT_APIKEY`.
-3. Under **Variables**, set `CITY` (default `New York`) and `SEND_HOUR` (0–23 in that city's time, default `6`).
+3. Under **Variables**, set `CITY` (default `New York`) and `SEND_HOURS` (hours 0–23 in that city's time, default `6,12,17`:
+   a morning brief for the day, an afternoon one for the rest of the day and an evening one for the night ahead).
    Set `BRIEF_STYLE` to `full` to get the whole brief instead of 3 lines.
-4. Open **Actions → Morning brief → Run workflow** to send one right now. After that it goes out every day at about SEND_HOUR:30
-   local time (the job checks hourly and only sends at that hour).
+4. Open **Actions → Morning brief → Run workflow** to send one right now. After that it goes out every day at about :30 past each
+   of those hours, local time (the job checks hourly and only sends at those hours).
 
 GitHub pauses scheduled jobs in repositories with no activity for 60 days; re-enable it on the Actions tab if that happens.
 

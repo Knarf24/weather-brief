@@ -73,8 +73,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Daily Weather & Air Brief")
     ap.add_argument("city", nargs="?", default=os.environ.get("CITY") or "Durban")
     ap.add_argument("--send", action="store_true", help="send to Telegram / WhatsApp if their keys are set")
-    ap.add_argument("--at-hour", type=int, default=None,
-                    help="only send if it is this hour (0-23) in the city right now; lets an hourly job send at local time")
+    ap.add_argument("--at-hour", default=None,
+                    help="only send if it is one of these hours (0-23, e.g. 6,12,17) in the city right now; "
+                         "lets an hourly job send at local time")
     args = ap.parse_args(argv)
 
     result = asyncio.run(brief.brief_for_city(args.city, get_json))
@@ -86,8 +87,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.at_hour is not None:
         local_hour = int(result["now"][11:13])
-        if local_hour != args.at_hour:
-            print(f"\nNot sending: it's {result['now'][11:16]} in {args.city}; the brief goes out at {args.at_hour:02d}:xx.")
+        hours = {int(x) for x in str(args.at_hour).replace(" ", "").split(",") if x}
+        if local_hour not in hours:
+            when = ", ".join(f"{h:02d}:xx" for h in sorted(hours))
+            print(f"\nNot sending: it's {result['now'][11:16]} in {args.city}; the brief goes out at {when}.")
             return 0
 
     env = os.environ

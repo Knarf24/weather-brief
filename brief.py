@@ -51,6 +51,16 @@ WEATHER = {
 }
 
 
+def _severity(code) -> int:
+    """How much a weather code matters for a short summary: storms > snow > rain > fog > cloud > clear."""
+    c = int(code)
+    if c >= 95: return 90
+    if c in (71, 73, 75, 77, 85, 86): return 80
+    if c >= 51: return 50 + c % 10
+    if c in (45, 48): return 40
+    return c
+
+
 def describe(code) -> tuple[str, str]:
     return WEATHER.get(int(code) if code is not None else -1, ("Unknown", "🌡️"))
 
@@ -203,7 +213,7 @@ def _ranges(hours: list[int]) -> list[tuple[int, int]]:
 
 
 def _fmt_range(r: tuple[int, int]) -> str:
-    return f"{r[0]:02d}:00" if r[0] == r[1] else f"{r[0]:02d}:00–{r[1] + 1:02d}:00"
+    return f"{r[0]:02d}:00–{(r[1] + 1) % 24:02d}:00"
 
 
 def clothing(t_min: float, t_max: float, rain: bool) -> str:
@@ -242,9 +252,10 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
     today = d["time"][day_idx]
 
     idx_today = _hours_for(today, times)
-    start = min(max(now_hour, DAY_START), DAY_END)  # before 06:00, brief the coming day
+    start = min(max(now_hour, DAY_START), 23)  # before 06:00, brief the coming day
+    end = 23 if now_hour >= 17 else DAY_END     # an evening brief covers the night ahead
     # the part of the day still ahead, during waking hours
-    ahead = [i for i in idx_today if start <= _hour(times[i]) <= DAY_END] or idx_today[-3:]
+    ahead = [i for i in idx_today if start <= _hour(times[i]) <= end] or idx_today[-3:]
 
     # --- rain
     probs = [(i, h["precipitation_probability"][i] or 0) for i in ahead]
@@ -381,8 +392,18 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
     else:
         rain_short = "🌂 No umbrella needed"
     air_short = f"{level['icon']} Air: {level['name'].lower()}" if worst is not None else "⚪ Air: no reading"
-    short_text = (f"{icon} {place.get('name') or place_label(place)}, {day_short}: "
-                  f"{t_min:.0f}–{t_max:.0f}°C, {sky.lower()}\n{rain_short}\n{air_short}")
+    name = place.get("name") or place_label(place)
+    if now_hour >= 12 and temps:
+        # afternoon / evening: only the hours still ahead, not the whole day again
+        part = "tonight" if now_hour >= 17 else "this afternoon"
+        codes = [h["weather_code"][i] for i in ahead if h["weather_code"][i] is not None]
+        p_sky, p_icon = describe(max(codes, key=_severity)) if codes else (sky, icon)
+        lo, hi = min(temps), max(temps)
+        t_part = f"{lo:.0f}°C" if round(lo) == round(hi) else f"{lo:.0f}–{hi:.0f}°C"
+        first = f"{p_icon} {name}, {part}: {t_part}, {p_sky.lower()}"
+    else:
+        first = f"{icon} {name}, {day_short}: {t_min:.0f}–{t_max:.0f}°C, {sky.lower()}"
+    short_text = f"{first}\n{rain_short}\n{air_short}"
 
     return {
         "place": place_label(place), "date": today, "date_label": date_label, "now": now,

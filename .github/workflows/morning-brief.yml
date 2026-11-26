@@ -1,8 +1,8 @@
 name: Morning brief
 
-# Checks every hour and sends only when it's SEND_HOUR (default 6, i.e. between 06:30 and 07:30)
+# Checks every hour and sends only at the SEND_HOURS (default 6,12,17: about 06:30, 12:30 and 17:30)
 # in the city's own time zone, so it stays right through daylight-saving changes.
-# Set the repository variables CITY and SEND_HOUR to change place and time. GitHub may start it a few minutes late.
+# Set the repository variables CITY and SEND_HOURS (e.g. 7 or 6,12,17) to change place and times. GitHub may start it a few minutes late.
 on:
   schedule:
     - cron: "30 * * * *"
@@ -32,10 +32,10 @@ jobs:
           CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
           BRIEF_STYLE: ${{ vars.BRIEF_STYLE }}
-          SEND_HOUR: ${{ vars.SEND_HOUR || '6' }}
+          SEND_HOURS: ${{ vars.SEND_HOURS || vars.SEND_HOUR || '6,12,17' }}
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            python send_brief.py --send --at-hour "$SEND_HOUR"
+            python send_brief.py --send --at-hour "$SEND_HOURS"
           else
             python send_brief.py --send   # "Run workflow" button: send right now
           fi

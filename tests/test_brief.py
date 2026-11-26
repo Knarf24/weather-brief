@@ -210,3 +210,24 @@ def test_send_ntfy_request(monkeypatch):
     monkeypatch.setattr(send_brief.urllib.request, "urlopen", fake_urlopen)
     send_brief.send_ntfy("my-topic", "☔ Take an umbrella", "https://x")
     assert seen == {"url": "https://ntfy.sh/my-topic", "body": "☔ Take an umbrella", "title": "Morning brief", "method": "POST"}
+
+
+def test_afternoon_and_evening_short_messages():
+    w, a = load("forecast_rainy.json"), load("air_clean.json")
+    noon = brief.make_brief(PLACE, w, a, now="2026-11-26T12:30")["short_text"].split("\n")
+    assert noon[0].startswith("🌧️ Durban, this afternoon:") and "rain" in noon[0]
+    assert noon[1] == "☔ Take an umbrella (14:00–18:00)"
+    eve = brief.make_brief(PLACE, w, a, now="2026-11-26T19:30")["short_text"].split("\n")
+    assert eve[0].startswith("🌤️ Durban, tonight:") or eve[0].startswith("☀️ Durban, tonight:")
+    assert eve[1] == "🌂 No umbrella needed"
+
+
+def test_several_send_hours(monkeypatch, capsys):
+    monkeypatch.setattr(send_brief, "get_json", fake_get_json())
+    calls = []
+    monkeypatch.setattr(send_brief, "send_ntfy", lambda *a: calls.append(a))
+    for k in ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CALLMEBOT_PHONE", "CALLMEBOT_APIKEY"]:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("NTFY_TOPIC", "t")
+    assert send_brief.main(["Durban", "--send", "--at-hour", "12,17"]) == 0 and calls == []
+    assert send_brief.main(["Durban", "--send", "--at-hour", "6,12,17"]) == 0 and len(calls) == 1
