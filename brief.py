@@ -242,7 +242,7 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
     today = d["time"][day_idx]
 
     idx_today = _hours_for(today, times)
-    start = min(max(now_hour, 0), DAY_END)
+    start = min(max(now_hour, DAY_START), DAY_END)  # before 06:00, brief the coming day
     # the part of the day still ahead, during waking hours
     ahead = [i for i in idx_today if start <= _hour(times[i]) <= DAY_END] or idx_today[-3:]
 
@@ -335,7 +335,10 @@ def make_brief(place: dict, weather: dict, air: dict | None, now: str | None = N
         good = sorted(hr for s, hr, p, a in scored if s <= best_score + 10 and p < RAIN_LIKELY)
         if good:
             r = max(_ranges(good), key=lambda x: x[1] - x[0])
-            best_line = f"Best time to be outside: {_fmt_range(r)}."
+            if r[1] - r[0] >= 9:
+                best_line = "Any time is fine to be outside today."
+            else:
+                best_line = f"Best time to be outside: {_fmt_range(r)}."
         else:
             best_line = "No really good time to be outside today; keep outdoor plans short."
 

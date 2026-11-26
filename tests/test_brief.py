@@ -152,3 +152,20 @@ def test_send_brief_sends_to_both(monkeypatch, capsys):
     assert [c[0] for c in calls] == ["tg", "wa"]
     assert "Morning brief" in calls[0][1][2]
     assert "Sent to Telegram and WhatsApp" in capsys.readouterr().out
+
+
+def test_night_run_briefs_the_coming_day():
+    b = brief.make_brief(PLACE, load("forecast_rainy.json"), load("air_clean.json"), now="2026-11-26T02:14")
+    assert b["umbrella"] is True and "14:00–18:00" in b["rain_line"]
+    assert "02:00" not in (b["best_line"] or "")
+
+
+def test_all_day_good_says_any_time():
+    w = load("forecast_dry.json")
+    w["hourly"]["temperature_2m"] = [20.0] * len(w["hourly"]["time"])
+    air = load("air_clean.json")
+    for k in ("pm2_5", "pm10", "nitrogen_dioxide"):
+        air["hourly"][k] = [1.0] * len(air["hourly"]["time"])
+    air["hourly"]["ozone"] = [20.0] * len(air["hourly"]["time"])
+    b = brief.make_brief(PLACE, w, air, now="2026-11-26T05:00")
+    assert b["best_line"] == "Any time is fine to be outside today."
