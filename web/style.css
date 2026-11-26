@@ -31,7 +31,7 @@ code { font-size: .85em; background: var(--bg); border: 1px solid var(--line); b
 .wide { margin-top: 16px; }
 .how ol, .wide ol { padding-left: 20px; }
 .how li, .wide li { margin-bottom: 6px; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
 
 input[type=text], button, .btn { font: inherit; color: inherit; }

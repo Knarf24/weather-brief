@@ -1,4 +1,4 @@
-"""Send the morning brief to Telegram and/or WhatsApp. Runs every morning on GitHub Actions,
+"""Send the morning brief as a phone notification (ntfy), to Telegram and/or WhatsApp. Runs every morning on GitHub Actions,
 or on any computer with Python 3.10+ (no packages to install).
 
     python send_brief.py Durban            # just print the brief
@@ -6,6 +6,7 @@ or on any computer with Python 3.10+ (no packages to install).
 
 Where it goes is set with environment variables (on GitHub: Settings > Secrets and variables > Actions):
 
+    NTFY_TOPIC                              free phone notification: install the ntfy app, subscribe to this topic
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   free: make a bot with @BotFather, see README
     CALLMEBOT_PHONE, CALLMEBOT_APIKEY      free WhatsApp: text @CallMeBot once to get a key, see README
     CITY                                    used when no city is given on the command line
@@ -52,10 +53,28 @@ def send_whatsapp_callmebot(phone: str, apikey: str, text: str) -> None:
         raise RuntimeError("CallMeBot didn't accept it: " + " ".join(body.split())[:200])
 
 
+def send_ntfy(topic: str, text: str, click: str | None = None, server: str | None = None) -> None:
+    """Phone notification through ntfy (free app, no account): anyone subscribed to the topic gets it."""
+    server = (server or "https://ntfy.sh").rstrip("/")
+    headers = {**UA, "Title": "Morning brief", "Tags": "partly_sunny", "Content-Type": "text/plain; charset=utf-8"}
+    if click:
+        headers["Click"] = click
+    req = urllib.request.Request(f"{server}/{urllib.parse.quote(topic.strip())}", data=text.encode("utf-8"),
+                                 headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as r:
+        if r.status >= 300:
+            raise RuntimeError(f"ntfy answered {r.status}")
+
+
+PAGE = "https://knarf24.github.io/weather-brief/"
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Daily Weather & Air Brief")
     ap.add_argument("city", nargs="?", default=os.environ.get("CITY") or "Durban")
     ap.add_argument("--send", action="store_true", help="send to Telegram / WhatsApp if their keys are set")
+    ap.add_argument("--at-hour", type=int, default=None,
+                    help="only send if it is this hour (0-23) in the city right now; lets an hourly job send at local time")
     args = ap.parse_args(argv)
 
     result = asyncio.run(brief.brief_for_city(args.city, get_json))
@@ -65,16 +84,24 @@ def main(argv: list[str] | None = None) -> int:
     print(text)
     if not args.send:
         return 0
+    if args.at_hour is not None:
+        local_hour = int(result["now"][11:13])
+        if local_hour != args.at_hour:
+            print(f"\nNot sending: it's {result['now'][11:16]} in {args.city}; the brief goes out at {args.at_hour:02d}:xx.")
+            return 0
 
     env = os.environ
     sent, failed = [], []
     targets = []
+    if env.get("NTFY_TOPIC"):
+        click = PAGE + "?" + urllib.parse.urlencode({"city": args.city})
+        targets.append(("phone notification (ntfy)", lambda: send_ntfy(env["NTFY_TOPIC"], text, click, env.get("NTFY_SERVER"))))
     if env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID"):
         targets.append(("Telegram", lambda: send_telegram(env["TELEGRAM_BOT_TOKEN"], env["TELEGRAM_CHAT_ID"], text)))
     if env.get("CALLMEBOT_PHONE") and env.get("CALLMEBOT_APIKEY"):
         targets.append(("WhatsApp", lambda: send_whatsapp_callmebot(env["CALLMEBOT_PHONE"], env["CALLMEBOT_APIKEY"], text)))
     if not targets:
-        print("\nNothing sent: no Telegram or WhatsApp keys are set (see README).")
+        print("\nNothing sent: no ntfy topic, Telegram or WhatsApp keys are set (see README).")
         return 0
     for name, send in targets:
         try:

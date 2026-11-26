@@ -1,9 +1,11 @@
 name: Morning brief
 
-# Every day at 04:30 UTC (06:30 in South Africa). Change the time here; GitHub may start it a few minutes late.
+# Checks every hour and sends only when it's SEND_HOUR (default 6, i.e. between 06:30 and 07:30)
+# in the city's own time zone, so it stays right through daylight-saving changes.
+# Set the repository variables CITY and SEND_HOUR to change place and time. GitHub may start it a few minutes late.
 on:
   schedule:
-    - cron: "30 4 * * *"
+    - cron: "30 * * * *"
   workflow_dispatch:
     inputs:
       city:
@@ -23,10 +25,17 @@ jobs:
           python-version: "3.12"
       - name: Make and send the brief
         env:
-          CITY: ${{ inputs.city || vars.CITY || 'Durban' }}
+          CITY: ${{ inputs.city || vars.CITY || 'New York' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
           BRIEF_STYLE: ${{ vars.BRIEF_STYLE }}
-        run: python send_brief.py --send
+          SEND_HOUR: ${{ vars.SEND_HOUR || '6' }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python send_brief.py --send --at-hour "$SEND_HOUR"
+          else
+            python send_brief.py --send   # "Run workflow" button: send right now
+          fi

@@ -134,7 +134,7 @@ def test_unknown_city():
 
 def test_send_brief_prints_and_skips_without_keys(monkeypatch, capsys):
     monkeypatch.setattr(send_brief, "get_json", fake_get_json())
-    for k in ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CALLMEBOT_PHONE", "CALLMEBOT_APIKEY"]:
+    for k in ["NTFY_TOPIC", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CALLMEBOT_PHONE", "CALLMEBOT_APIKEY"]:
         monkeypatch.delenv(k, raising=False)
     assert send_brief.main(["Durban", "--send"]) == 0
     out = capsys.readouterr().out
@@ -146,6 +146,7 @@ def test_send_brief_sends_to_both(monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(send_brief, "send_telegram", lambda *a: calls.append(("tg", a)))
     monkeypatch.setattr(send_brief, "send_whatsapp_callmebot", lambda *a: calls.append(("wa", a)))
+    monkeypatch.delenv("NTFY_TOPIC", raising=False)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t"); monkeypatch.setenv("TELEGRAM_CHAT_ID", "1")
     monkeypatch.setenv("CALLMEBOT_PHONE", "+27000"); monkeypatch.setenv("CALLMEBOT_APIKEY", "k")
     assert send_brief.main(["Durban", "--send"]) == 0
@@ -178,3 +179,34 @@ def test_short_message_is_three_lines():
     assert lines[0].startswith("🌧️ Durban, Thu 26 Nov: 10–24°C")
     assert lines[1] == "☔ Take an umbrella (14:00–18:00)"
     assert lines[2] == "🟡 Air: moderate"
+
+
+def test_ntfy_and_local_hour(monkeypatch, capsys):
+    monkeypatch.setattr(send_brief, "get_json", fake_get_json())
+    calls = []
+    monkeypatch.setattr(send_brief, "send_ntfy", lambda topic, text, click, server: calls.append((topic, text, click)))
+    for k in ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CALLMEBOT_PHONE", "CALLMEBOT_APIKEY"]:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("NTFY_TOPIC", "wb-secret-topic")
+    # the fixture's local time is 06:45, so an hour-7 job doesn't send and an hour-6 job does
+    assert send_brief.main(["Durban", "--send", "--at-hour", "7"]) == 0
+    assert calls == [] and "Not sending" in capsys.readouterr().out
+    assert send_brief.main(["Durban", "--send", "--at-hour", "6"]) == 0
+    topic, text, click = calls[0]
+    assert topic == "wb-secret-topic" and text.count("\n") == 2 and click.endswith("?city=Durban")
+
+
+def test_send_ntfy_request(monkeypatch):
+    seen = {}
+
+    class Resp:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake_urlopen(req, timeout):
+        seen.update(url=req.full_url, body=req.data.decode(), title=req.get_header("Title"), method=req.get_method())
+        return Resp()
+    monkeypatch.setattr(send_brief.urllib.request, "urlopen", fake_urlopen)
+    send_brief.send_ntfy("my-topic", "☔ Take an umbrella", "https://x")
+    assert seen == {"url": "https://ntfy.sh/my-topic", "body": "☔ Take an umbrella", "title": "Morning brief", "method": "POST"}
