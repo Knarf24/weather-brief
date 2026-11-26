@@ -30,8 +30,8 @@ Forecasts come from [Open-Meteo](https://open-meteo.com) (free, no API key).
 2. Pick where it should go and add the secrets under **Settings → Secrets and variables → Actions → Secrets**:
    - **Telegram:** message `@BotFather`, send `/newbot`, copy the token into `TELEGRAM_BOT_TOKEN`. Send your bot any message, open
      `https://api.telegram.org/bot<token>/getUpdates` and copy the number after `"chat":{"id":` into `TELEGRAM_CHAT_ID`.
-   - **WhatsApp (CallMeBot, free for messages to yourself):** save `+34 694 29 84 96` in your contacts and send it
-     `I allow callmebot to send me messages`. Put your number (like `+27821234567`) in `CALLMEBOT_PHONE` and the key it sends back in `CALLMEBOT_APIKEY`.
+   - **WhatsApp (CallMeBot, free for messages to yourself):** open [CallMeBot's WhatsApp page](https://www.callmebot.com/blog/free-api-whatsapp-messages/), save the bot number shown there
+     in your contacts and send it `I allow callmebot to send me messages` (if the page says the bot is full, try again in a few days). Put your number (like `+27821234567`) in `CALLMEBOT_PHONE` and the key it sends back in `CALLMEBOT_APIKEY`.
 3. Under **Variables**, add `CITY` (for example `Johannesburg`). Without it the brief is for Durban.
 4. Open **Actions → Morning brief → Run workflow** to try it now. After that it runs every day at 04:30 UTC (06:30 in South Africa);
    change the time in [`.github/workflows/morning-brief.yml`](.github/workflows/morning-brief.yml).
