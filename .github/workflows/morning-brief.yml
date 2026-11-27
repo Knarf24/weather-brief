@@ -11,6 +11,10 @@ on:
       city:
         description: "City (leave empty to use the CITY variable)"
         required: false
+      send:
+        description: "Send it (untick to only show the brief in the log)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -36,6 +40,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             python send_brief.py --send --at-hour "$SEND_HOURS"
+          elif [ "${{ inputs.send }}" = "false" ]; then
+            python send_brief.py          # just print it
           else
             python send_brief.py --send   # "Run workflow" button: send right now
           fi
