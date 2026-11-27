@@ -20,6 +20,8 @@ import asyncio
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -28,9 +30,17 @@ import brief
 UA = {"User-Agent": "weather-brief/1.0 (+https://github.com/Knarf24/weather-brief)"}
 
 
-def _get(url: str, timeout: int = 30) -> bytes:
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
-        return r.read()
+def _get(url: str, timeout: int = 30, tries: int = 4) -> bytes:
+    """GET with a few retries, because a scheduled run shouldn't be lost to one network hiccup."""
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
+                return r.read()
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            if attempt == tries - 1 or (isinstance(e, urllib.error.HTTPError) and e.code < 500 and e.code != 429):
+                raise
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError("unreachable")
 
 
 async def get_json(url: str) -> dict:

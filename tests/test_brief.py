@@ -240,3 +240,21 @@ def test_city_with_region_picks_the_right_one():
     assert pick("Durban, France") == "Durban, Occitanie, France"
     assert pick("Durban, FR") == "Durban, Occitanie, France"
     assert brief.US_STATES["NC"] == "North Carolina"
+
+
+def test_get_retries_network_errors(monkeypatch):
+    attempts = []
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"{}"
+
+    def flaky(req, timeout):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise send_brief.urllib.error.URLError("handshake timed out")
+        return Resp()
+    monkeypatch.setattr(send_brief.urllib.request, "urlopen", flaky)
+    monkeypatch.setattr(send_brief.time, "sleep", lambda s: None)
+    assert send_brief._get("https://example.org") == b"{}" and len(attempts) == 3
