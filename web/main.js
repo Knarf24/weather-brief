@@ -24,15 +24,26 @@ const store = {
 const label = (p) => p.label || [p.name, p.admin1 !== p.name ? p.admin1 : null, p.country].filter(Boolean).join(", ");
 
 // ---------- start-up ----------
+// Python starts in the background while the page is already usable. Anything that needs Python waits for it.
+let pyReady = null;
 async function startPython() {
-  const py = await loadPyodide({ indexURL: new URL("pyodide/", location.href).href });
-  $("loadText").textContent = "Loading the brief…";
-  const code = await fetch("brief.py").then((r) => { if (!r.ok) throw new Error("brief.py missing"); return r.text(); });
+  const [py, code] = await Promise.all([
+    loadPyodideFast(),
+    fetch("brief.py").then((r) => { if (!r.ok) throw new Error("brief.py missing"); return r.text(); }),
+  ]);
   py.FS.writeFile("/home/pyodide/brief.py", code);
   py.runPython("import brief");
   const mod = py.pyimport("brief");
   placesJson = mod.places_json;
   briefJson = mod.brief_json;
+}
+const whenPython = (fn) => async (...args) => { await pyReady; return fn(...args); };
+const places = whenPython((q) => placesJson(q));
+const makeBrief = whenPython((p) => briefJson(p));
+
+// Keeps Python saved on this device so the next visit starts without downloading it (see sw.js).
+function keepPythonSaved() {
+  if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
 // ---------- recent cities ----------
@@ -70,7 +81,7 @@ function renderSuggest() {
 async function search(q) {
   const seq = ++searchSeq;
   try {
-    const res = JSON.parse(await placesJson(q));
+    const res = JSON.parse(await places(q));
     if (seq !== searchSeq) return [];
     suggestions = res; active = -1; renderSuggest();
     return res;
@@ -125,7 +136,7 @@ async function showBrief(place) {
   $("place").textContent = label(place);
   $("headline").textContent = "Getting the forecast…";
   try {
-    const b = JSON.parse(await briefJson(JSON.stringify(place)));
+    const b = JSON.parse(await makeBrief(JSON.stringify(place)));
     render(b, place);
     remember(place);
     renderChips();
@@ -216,25 +227,28 @@ function wire() {
 (async () => {
   wire();
   renderChips();
+  pyReady = startPython();
+  document.documentElement.dataset.ui = "ready";
+  const params = new URLSearchParams(location.search);
+  const city = params.get("city");
+  if (params.get("lat") && params.get("lon")) {
+    showBrief({ name: params.get("name") || "Chosen place", latitude: +params.get("lat"), longitude: +params.get("lon") });
+  } else if (city) {
+    $("city").value = city;
+    submitSearch();
+  } else {
+    const last = store.get("wb-last", null);
+    showBrief(last || DEFAULT_CHIPS[0]);
+  }
   try {
-    await startPython();
-    for (const el of ["city", "go", "locate"]) $(el).disabled = false;
+    await pyReady;
     $("loading").hidden = true;
-    const params = new URLSearchParams(location.search);
-    const city = params.get("city");
-    if (params.get("lat") && params.get("lon")) {
-      showBrief({ name: params.get("name") || "Chosen place", latitude: +params.get("lat"), longitude: +params.get("lon") });
-    } else if (city) {
-      $("city").value = city;
-      submitSearch();
-    } else {
-      const last = store.get("wb-last", null);
-      showBrief(last || DEFAULT_CHIPS[0]);
-    }
+    document.documentElement.dataset.py = "ready";
   } catch (e) {
     console.error(e);
     $("loading").classList.add("error");
     $("loadText").textContent = "Couldn't start Python: " + e.message + ". Please reload the page.";
     document.querySelector(".spinner")?.remove();
   }
+  keepPythonSaved();
 })();

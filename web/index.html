@@ -18,22 +18,22 @@
       using free forecasts from Open-Meteo.</p>
   </header>
 
-  <div id="loading" class="loading">
+  <div id="loading" class="loading slim" role="status">
     <div class="spinner"></div>
     <div>
-      <b id="loadText">Starting Python…</b>
-      <div class="small">First visit downloads about 12 MB (Python). Later visits are faster.</div>
+      <b id="loadText">Starting Python in the background…</b>
+      <div class="small">The first visit downloads Python once (about 12 MB). After that it is saved on this device.</div>
     </div>
   </div>
 
   <section class="card pick">
     <form id="searchForm" class="search" autocomplete="off">
       <div class="combo">
-        <input id="city" type="text" placeholder="Type your city or town…" aria-label="City" disabled>
+        <input id="city" type="text" placeholder="Type your city or town…" aria-label="City">
         <ul id="suggest" class="suggest" role="listbox" hidden></ul>
       </div>
-      <button id="go" type="submit" disabled>Get my brief</button>
-      <button id="locate" type="button" class="ghost" disabled title="Use where you are now">📍 My location</button>
+      <button id="go" type="submit">Get my brief</button>
+      <button id="locate" type="button" class="ghost" title="Use where you are now">📍 My location</button>
     </form>
     <div id="chips" class="chips"></div>
   </section>
@@ -137,6 +137,7 @@
   </section>
 
   <script src="pyodide/pyodide.js"></script>
+  <script src="pyfast.js"></script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
